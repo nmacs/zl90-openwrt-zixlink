@@ -1,0 +1,67 @@
+#
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+
+include $(TOPDIR)/rules.mk
+
+PKG_NAME:=luaposix2
+PKG_VERSION:=34.1.1
+PKG_RELEASE:=6
+
+PKG_SOURCE_URL:=https://codeload.github.com/luaposix/luaposix/tar.gz/v$(PKG_VERSION)?
+PKG_SOURCE:=luaposix-$(PKG_VERSION).tar.gz
+PKG_BUILD_DIR:=$(BUILD_DIR)/luaposix-$(PKG_VERSION)
+PKG_HASH:=7948f4ac8b953172e928753632e37ad97cc3014df74b524fe7839f71216a7e90
+PKG_MAINTAINER:=Maxim Storchak <m.storchak@gmail.com>
+PKG_LICENSE:=MIT
+PKG_LICENSE_FILES:=COPYING
+
+PKG_BUILD_DEPENDS:=luarocks/host
+
+include $(INCLUDE_DIR)/package.mk
+
+define Package/luaposix2
+  SUBMENU:=Lua
+  SECTION:=lang
+  CATEGORY:=Languages
+  TITLE:=POSIX binding for LuaJIT, Lua 5.1, 5.2 and 5.3
+  URL:=https://github.com/luaposix/luaposix
+  DEPENDS:=+lua +lua-bit32
+endef
+
+define Package/luaposix2/description
+  luaposix is a general POSIX library for Lua providing access
+  to various low level libc functions.
+endef
+
+TARGET_PATH_PKG:=$(CURDIR)/scripts:$(TARGET_PATH_PKG)
+
+TARGET_CFLAGS += \
+	-I$(STAGING_DIR)/usr/include
+
+define Build/Compile
+  cd $(PKG_BUILD_DIR) && \
+	LDFLAGS="$(TARGET_LDFLAGS) $(FPIC)" \
+	CFLAGS="$(TARGET_CFLAGS) $(FPIC)" \
+    CC="$(TARGET_CC)" LD="$(TARGET_CC)" \
+    LUA_PKGNAME=lua5.1 \
+    LUA_LIBDIR=$(STAGING_DIR)/usr/share/lua \
+    luarocks make --force --deps-mode=none --pack-binary-rock luaposix-$(PKG_VERSION)-1.rockspec \
+    LUA_LIBDIR=$(STAGING_DIR)/usr/share/lua \
+    LUA_PKGNAME=lua5.1 \
+    CC="$(TARGET_CC)" LD="$(TARGET_CC)" \
+	CFLAGS="$(TARGET_CFLAGS) $(FPIC)" \
+	LDFLAGS="$(TARGET_LDFLAGS)"
+endef
+
+define Package/luaposix2/install
+	$(INSTALL_DIR) $(1)/usr/share/lua/posix
+	$(INSTALL_DIR) $(1)/usr/lib/lua/posix/sys
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/linux/posix/*.so $(1)/usr/lib/lua/posix/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/linux/posix/sys/*.so $(1)/usr/lib/lua/posix/sys/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/lib/posix/*.lua $(1)/usr/share/lua/posix/
+	rm -f $(1)/usr/share/lua/posix/{deprecated,compat}.lua
+endef
+
+$(eval $(call BuildPackage,luaposix2))

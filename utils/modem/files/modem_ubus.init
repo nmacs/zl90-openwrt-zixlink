@@ -1,0 +1,45 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=10
+
+USE_PROCD=1
+
+DIR=/usr/share/lua/modem
+PROG=modem_ubus.lua
+
+PIDFILE=/var/run/modem_ubus.pid
+LUA_PATH="./?.lua;/usr/share/lua/modem/?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+
+start_service_daemon() {
+	local enabled
+
+	config_get_bool enabled general enabled 0
+	[ "$enabled" -gt 0 ] || return 0
+	
+	PROTOCOL=`uci get network.broadband.proto`
+	if [[ "$PROTOCOL" != "modemmanager" && "$PROTOCOL" != "mm_dualsim" ]] ; then
+		PROTOCOL=`uci get network.qmi.proto`
+	fi
+	
+	if [[ "$PROTOCOL" = "modemmanager" ]] ; then
+		PROG=modem_mm_ubus.lua
+	elif [[ "$PROTOCOL" = "mm_dualsim" ]] ; then
+		PROG=modem_mm_ubus.lua
+	elif [[ "$PROTOCOL" = "qmi" ]] ; then
+		PROG=modem_qmi_ubus.lua
+	else
+		return 0
+	fi
+
+	procd_open_instance
+	procd_set_param env LUA_PATH=$LUA_PATH
+	procd_set_param command "$DIR/$PROG"
+	procd_set_param respawn 3600 10 0
+	procd_close_instance
+}
+
+start_service() {
+	config_load 'modem'
+	start_service_daemon 'modem'
+}
