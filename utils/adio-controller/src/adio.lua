@@ -120,9 +120,9 @@ M.UCI_OPTION_MAP = {
 				end
 			elseif id == "dac1" then
 				if new_val == M.DAC_VOLTAGE_0_5V_ID then
-					gpio.write(M.GPIO_EXPANDER_DAC_10V, 1)
-				elseif new_val == M.DAC_VOLTAGE_0_10V_ID then
 					gpio.write(M.GPIO_EXPANDER_DAC_10V, 0)
+				elseif new_val == M.DAC_VOLTAGE_0_10V_ID then
+					gpio.write(M.GPIO_EXPANDER_DAC_10V, 1)
 				end
 			end
 		end
