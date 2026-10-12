@@ -40,6 +40,7 @@ define Package/modem/install
 	
 	$(INSTALL_BIN) ./src/*.lua $(1)/usr/share/lua/modem/
 	$(INSTALL_BIN) ./files/modem.sh $(1)/lib/functions/modem.sh
+	$(INSTALL_BIN) ./files/modem_detect.sh $(1)/lib/functions/modem_detect.sh
 	
 	$(INSTALL_BIN) ./files/modem.init $(1)/etc/init.d/modem
 	$(INSTALL_BIN) ./files/modem_ubus.init $(1)/etc/init.d/modem_ubus

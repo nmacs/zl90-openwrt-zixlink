@@ -27,6 +27,7 @@ local sim_settings = {}
 local modem_system_ifname = "broadband"
 local modem_ifname = ucicursor:get("network", modem_system_ifname, "_modem_ifname") or "ppp0"
 local modem_device = ucicursor:get("network", modem_system_ifname, "_modem_device") or "/dev/ttyUSB0"
+local modem_type = "generic"
 
 local sim_priority = tonumber(ucicursor:get("network", modem_system_ifname, "sim_priority")) or 1
 local sim_switch_timeout = tonumber(ucicursor:get("network", modem_system_ifname, "sim_switch_timeout")) or 600
@@ -199,6 +200,28 @@ local function wait_for_device(dev, timeout)
 		socket.sleep(1)
 	end
 	return false
+end
+
+local function detect_modem()
+	local handle = io.popen("/lib/functions/modem_detect.sh")
+	if not handle then return nil, "Failed to execute script" end
+
+	local result = handle:read("*a") -- Read all output
+	local success, exit_type, code = handle:close()
+
+	if not success then
+		return nil, "Modem detection failed with code " .. tostring(code)
+	end
+
+	local modem_info = {}
+	for line in result:gmatch("[^\r\n]+") do
+		local key, value = line:match("^([^=]+)=(.*)$")
+		if key and value then
+			modem_info[key] = value
+		end
+	end
+
+	return modem_info
 end
 
 local function wait_for_modem_attached(dev, timeout)
@@ -426,7 +449,7 @@ end
 
 local function sys_action_modem(action)
 	nixio.syslog("warning", "Modem " .. action)
-	os.execute("/lib/functions/modem.sh " .. action)
+	os.execute("/lib/functions/modem.sh " .. action .. " " .. tostring(modem_type))
 end
 
 local function sys_action_modem_manager(action)
@@ -629,6 +652,50 @@ function state_reset()
 	return state_reset
 end
 
+function state_find()
+	local ok = true
+	
+	print("State find")
+	
+	while (true) do
+		local modem, err = detect_modem()
+		if (modem) then
+			print("Modem detected. Dev: " .. tostring(modem["SYSFS_PATH"]) .. ". Type: " .. tostring(modem["TYPE"]))
+			
+			if (modem["SYSFS_PATH"]) then
+				local new_modem_device = modem["SYSFS_PATH"]
+				if (new_modem_device ~= modem_device) then
+					uci.set("network", modem_system_ifname, "_modem_device", new_modem_device)
+					uci.set("network", modem_system_ifname, "device", new_modem_device)
+					
+					uci.commit("network")
+					uci.save("network")
+					
+					modem_device = new_modem_device
+				end
+			else
+				ok = false
+			end
+			
+			if (modem["TYPE"]) then
+				modem_type = modem["TYPE"]
+			else
+				ok = false
+			end
+		else
+			print("Modem detect failed: " .. tostring(err))
+			ok = false
+		end
+		
+		if (ok) then
+			print("Modem was found - reset state")
+			return state_reset
+		end
+		
+		socket.sleep(10)
+	end
+end
+
 -----------------------------------------------------------------------------------------------
 -- ##### 
 -----------------------------------------------------------------------------------------------
@@ -645,7 +712,7 @@ if (startup_delay > 0) then
 	socket.sleep(startup_delay)
 end
 
-local state = state_reset
+local state = state_find
 while true do
 	state = state()
 end

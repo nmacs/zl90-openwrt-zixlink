@@ -1,6 +1,7 @@
 #!/bin/sh /etc/rc.common
 
 board=$(board_name)
+modem="${1:-generic}"
 
 case "$board" in
 rockchip,zixlink-zl90)
@@ -10,6 +11,14 @@ rockchip,zixlink-zl90)
 	gpio_off_enabled=0
 	gpio_pwrkey_disabled=0
 	gpio_pwrkey_enabled=1
+	
+	case "$modem" in
+	m2)
+		gpio_pwrkey_disabled=1
+		gpio_pwrkey_enabled=0
+		;;
+	esac
+    
 	;;
 esac
 
@@ -44,7 +53,7 @@ start() {
 
 	set_gpio $gpio_off $gpio_off_enabled
 	sleep 1
-
+	
 	/bin/sh -c "sleep 1; echo $gpio_pwrkey_disabled > /sys/class/gpio/gpio$gpio_pwrkey/value; sleep 1; echo $gpio_pwrkey_enabled > /sys/class/gpio/gpio$gpio_pwrkey/value" &
 }
 
