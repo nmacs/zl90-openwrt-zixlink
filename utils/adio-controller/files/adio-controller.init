@@ -1,0 +1,30 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+STOP=10
+
+USE_PROCD=1
+
+DIR=/usr/share/lua/adio-controller
+PROG=main.lua
+
+PIDFILE=/var/run/adio-controller.pid
+LUA_PATH="./?.lua;/usr/share/lua/adio-controller/?.lua;/usr/share/lua/?.lua;/usr/share/lua/?/init.lua;/usr/lib/lua/?.lua;/usr/lib/lua/?/init.lua"
+
+start_service_daemon() {
+	local enabled
+
+	config_get_bool enabled general enabled 0
+	[ "$enabled" -gt 0 ] || return 0
+
+	procd_open_instance
+	procd_set_param env LUA_PATH=$LUA_PATH
+	procd_set_param command "$DIR/$PROG"
+	procd_set_param respawn 3600 10 0
+	procd_close_instance
+}
+
+start_service() {
+	config_load 'adio-controller'
+	start_service_daemon 'adio-controller'
+}
